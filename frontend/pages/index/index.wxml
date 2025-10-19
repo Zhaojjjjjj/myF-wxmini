@@ -1,0 +1,8 @@
+<view class="container">
+  <view wx:if="{{!hasRoom}}" class="create-room">
+    <button class="create-btn" bindtap="createRoom">创建房间</button>
+  </view>
+  <view wx:else class="room-info">
+    <button class="exit-btn" bindtap="exitRoom">退出房间</button>
+  </view>
+</view>

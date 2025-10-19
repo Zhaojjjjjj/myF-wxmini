@@ -1,0 +1,36 @@
+# ThinkPHP generated files
+runtime/
+vendor/
+.env
+.DS_Store
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+
+# Composer
+composer.phar
+composer.lock
+
+# Log files
+*.log
+
+# Build artifacts
+node_modules/
+dist/
+build/
+
+# Environment files
+.env.local
+.env.*.local
+
+# SQLite database file
+*.db
+
+# WeChat Mini Program
+miniprogram_npm/
