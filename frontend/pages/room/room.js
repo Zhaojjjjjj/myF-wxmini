@@ -334,6 +334,14 @@ Page({
                   title: '退出成功',
                   icon: 'success'
                 });
+
+                // 更新本地存储的用户信息，清空房间ID
+                const userInfo = wx.getStorageSync('user_info');
+                if (userInfo) {
+                  userInfo.current_room_id = null;
+                  wx.setStorageSync('user_info', userInfo);
+                }
+
                 // 立即跳转到首页，而不是等待1.5秒
                 wx.redirectTo({
                   url: '/pages/index/index'

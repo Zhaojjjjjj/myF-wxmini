@@ -1,33 +1,241 @@
+/* 动态3D背景容器 */
+.background-animation {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: -1;
+	overflow: hidden;
+}
+
+.background-animation::before {
+	content: "";
+	position: absolute;
+	top: -50%;
+	left: -50%;
+	width: 200%;
+	height: 200%;
+	background: linear-gradient(45deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+	background-size: 400% 400%;
+	animation: gradientShift 15s ease infinite;
+}
+
+.background-animation::after {
+	content: "";
+	position: absolute;
+	top: 20%;
+	left: 10%;
+	width: 100px;
+	height: 100px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 50%;
+	animation: float 6s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
+}
+
+@keyframes float {
+	0%,
+	100% {
+		transform: translateY(0px) rotate(0deg);
+	}
+	50% {
+		transform: translateY(-20px) rotate(180deg);
+	}
+}
+
+/* 3D几何图形 */
+.shape {
+	position: absolute;
+	opacity: 0.1;
+	animation: rotate3d 20s linear infinite;
+}
+
+.shape:nth-child(1) {
+	top: 20%;
+	right: 20%;
+	width: 60px;
+	height: 60px;
+	background: linear-gradient(45deg, #ff6b6b, #feca57);
+	clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+	animation-duration: 15s;
+}
+
+.shape:nth-child(2) {
+	top: 60%;
+	left: 15%;
+	width: 80px;
+	height: 80px;
+	background: linear-gradient(45deg, #48cae4, #023e8a);
+	border-radius: 50%;
+	animation-duration: 25s;
+	animation-direction: reverse;
+}
+
+.shape:nth-child(3) {
+	bottom: 30%;
+	right: 10%;
+	width: 70px;
+	height: 70px;
+	background: linear-gradient(45deg, #f72585, #b5179e);
+	clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+	animation-duration: 18s;
+}
+
+@keyframes rotate3d {
+	0% {
+		transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+	}
+	33% {
+		transform: rotateX(360deg) rotateY(120deg) rotateZ(120deg);
+	}
+	66% {
+		transform: rotateX(120deg) rotateY(360deg) rotateZ(240deg);
+	}
+	100% {
+		transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+	}
+}
+/* 主要容器 */
 .container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #f5f5f5;
+	position: relative;
+	z-index: 1;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100vh;
+	background: rgba(0, 0, 0, 0.1);
+	backdrop-filter: blur(1px);
 }
 
+/* 房间创建区域 */
 .create-room {
-  text-align: center;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 40px;
 }
 
+/* 醒目的创建房间按钮 */
 .create-btn {
-  width: 200px;
-  height: 50px;
-  background-color: #007aff;
-  color: white;
-  border-radius: 10px;
-  font-size: 18px;
+	height: 70px;
+	background: transparent;
+	color: white;
+	border: none;
+	border-radius: 35px;
+	font-size: 20px;
+	font-weight: 700;
+	transition: all 0.3s ease;
+	position: relative;
+	overflow: hidden;
+	animation: pulse 2s ease-in-out infinite;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 10px;
+	display: flex;
 }
 
-.room-info {
-  text-align: center;
+.btn-icon {
+	font-size: 24px;
+	animation: bounce 2s ease-in-out infinite;
+	margin-right: 10px;
 }
 
-.exit-btn {
-  width: 200px;
-  height: 50px;
-  background-color: #ff3b30;
-  color: white;
-  border-radius: 10px;
-  font-size: 18px;
+.btn-text {
+	font-size: 20px;
+	font-weight: 700;
+	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes bounce {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.1);
+	}
+}
+
+.create-btn::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+	transition: left 0.8s ease;
+}
+
+.create-btn:hover::before {
+	left: 100%;
+}
+
+.create-btn:active {
+	transform: scale(0.95);
+	box-shadow: 0 4px 15px rgba(255, 107, 107, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes pulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.02);
+	}
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 750rpx) {
+	.create-room {
+		padding: 20px;
+	}
+
+	.create-btn {
+		width: 240px;
+		height: 60px;
+		font-size: 18px;
+	}
+
+	.btn-icon {
+		font-size: 20px;
+	}
+
+	.btn-text {
+		font-size: 18px;
+	}
+
+	.btn-subtitle {
+		font-size: 11px;
+	}
+}
+
+@media screen and (max-width: 500rpx) {
+	.create-btn {
+		width: 200px;
+		height: 55px;
+		font-size: 16px;
+	}
+
+	.btn-icon {
+		font-size: 18px;
+	}
+
+	.btn-text {
+		font-size: 16px;
+	}
 }

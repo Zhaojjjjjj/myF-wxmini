@@ -1,20 +1,33 @@
 <view class="container">
+  <!-- 动态3D背景 -->
+  <view class="background-animation">
+    <view class="shape"></view>
+    <view class="shape"></view>
+    <view class="shape"></view>
+  </view>
+
   <!-- 顶部按钮 -->
   <view class="header">
-    <button class="refresh-btn" bindtap="refreshRoom">刷新</button>
-    <button class="invite-btn" bindtap="showInviteModal">邀请</button>
-    <button class="exit-btn" bindtap="exitRoom">退出房间</button>
+    <button class="refresh-btn" bindtap="refreshRoom">
+      <text class="btn-text">刷新</text>
+    </button>
+    <button class="invite-btn" bindtap="showInviteModal">
+      <text class="btn-text">邀请</text>
+    </button>
+    <button class="exit-btn" bindtap="exitRoom">
+      <text class="btn-text">退出</text>
+    </button>
   </view>
 
   <!-- 成员列表 -->
-  <view class="members">
-    <block wx:for="{{members}}" wx:key="id">
-      <view class="member-card" bindtap="onMemberTap" data-user-id="{{item.id}}" data-user-nickname="{{item.nickname}}" data-user-avatar="{{item.avatar_url}}">
+  <view class="members-container">
+    <view class="members-scroll">
+      <view wx:for="{{members}}" wx:key="id" class="member-card" bindtap="onMemberTap" data-user-id="{{item.id}}" data-user-nickname="{{item.nickname}}" data-user-avatar="{{item.avatar_url}}">
         <image class="avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
         <text class="nickname">{{item.nickname}}</text>
         <text class="score">{{item.score}}</text>
       </view>
-    </block>
+    </view>
   </view>
 
   <!-- 日志区域 -->
@@ -30,8 +43,14 @@
   <view class="modal" wx:if="{{showInviteModal}}">
     <view class="modal-content">
       <image class="qrcode" src="{{qrcodeUrl}}" mode="aspectFit"></image>
-      <button class="share-btn" open-type="share">邀请好友</button>
-      <button class="close-btn" bindtap="hideInviteModal">关闭</button>
+      <button class="share-btn" open-type="share">
+        <text class="btn-icon">📤</text>
+        <text class="btn-text">邀请好友</text>
+      </button>
+      <button class="close-btn" bindtap="hideInviteModal">
+        <text class="btn-icon">❌</text>
+        <text class="btn-text">关闭</text>
+      </button>
     </view>
   </view>
 
@@ -39,8 +58,14 @@
   <view class="modal" wx:if="{{showTransferModal}}">
     <view class="modal-content">
       <input class="transfer-input" placeholder="输入转账金额(1-10000)" type="number" bindinput="onTransferAmountInput" />
-      <button class="confirm-btn" bindtap="confirmTransfer">确定</button>
-      <button class="close-btn" bindtap="hideTransferModal">关闭</button>
+      <button class="confirm-btn" bindtap="confirmTransfer">
+        <text class="btn-icon">💰</text>
+        <text class="btn-text">确定转账</text>
+      </button>
+      <button class="close-btn" bindtap="hideTransferModal">
+        <text class="btn-icon">❌</text>
+        <text class="btn-text">取消</text>
+      </button>
     </view>
   </view>
 
@@ -50,14 +75,23 @@
       <!-- 头像预览和上传区域 -->
       <view class="avatar-upload-section">
         <image class="avatar-preview" src="{{currentUserAvatar}}" mode="aspectFill" bindtap="chooseAvatar"></image>
-        <button class="change-avatar-btn" bindtap="chooseAvatar">更换头像</button>
+        <button class="change-avatar-btn" bindtap="chooseAvatar">
+          <text class="btn-icon">📷</text>
+          <text class="btn-text">更换头像</text>
+        </button>
       </view>
 
       <!-- 昵称输入 -->
       <input class="profile-input" placeholder="输入昵称" value="{{newNickname}}" bindinput="onNicknameInput" />
 
-      <button class="confirm-btn" bindtap="confirmUpdateProfile">确定</button>
-      <button class="close-btn" bindtap="hideProfileModal">关闭</button>
+      <button class="confirm-btn" bindtap="confirmUpdateProfile">
+        <text class="btn-icon">✅</text>
+        <text class="btn-text">保存修改</text>
+      </button>
+      <button class="close-btn" bindtap="hideProfileModal">
+        <text class="btn-icon">❌</text>
+        <text class="btn-text">取消</text>
+      </button>
     </view>
   </view>
 </view>
