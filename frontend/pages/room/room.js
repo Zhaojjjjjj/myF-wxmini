@@ -14,6 +14,8 @@ Page({
     transferAmount: 0,
     newNickname: '',
     qrcodeUrl: '',
+    qrcodeLoading: true,    // 小程序码加载状态
+    qrcodeError: false,     // 小程序码加载错误状态
     currentUserId: null,
     currentUserAvatar: '', // 当前用户头像
     tempAvatarFile: null   // 临时头像文件
@@ -108,6 +110,11 @@ Page({
 
   // 加载小程序码
   loadQrCode() {
+    this.setData({
+      qrcodeLoading: true,
+      qrcodeError: false
+    });
+    
     // 直接设置小程序码的URL
     const qrcodeUrl = `${baseURL}/room/qrcode?room_id=${this.data.roomId}`;
     this.setData({
@@ -123,6 +130,27 @@ Page({
   // 隐藏邀请弹窗
   hideInviteModal() {
     this.setData({ showInviteModal: false });
+  },
+
+  // 小程序码加载成功
+  onQrcodeLoad() {
+    this.setData({
+      qrcodeLoading: false,
+      qrcodeError: false
+    });
+  },
+
+  // 小程序码加载失败
+  onQrcodeError() {
+    this.setData({
+      qrcodeLoading: false,
+      qrcodeError: true
+    });
+  },
+
+  // 重试加载小程序码
+  retryLoadQrcode() {
+    this.loadQrCode();
   },
 
   // 成员点击事件

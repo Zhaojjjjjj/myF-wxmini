@@ -7,25 +7,27 @@ const config = {
 	},
 	// 生产环境
 	production: {
-		baseURL: "http://wx.j0326.xyz",
-		wsURL: "wss://wx.j0326.xyz",
+		baseURL: "https://wx.0326j.top",
+		wsURL: "wss://wx.0326j.top",
 	},
 };
 
-// 简化环境判断，直接使用开发环境配置
-// 在微信小程序中，我们通过其他方式来区分环境
-const env = "development";
+// 自动判断小程序运行环境
+const accountInfo = wx.getAccountInfoSync();
+const envVersion = accountInfo.miniProgram.envVersion;
+
+let env = "development";
+if (envVersion === "release" || envVersion === "trial") {
+	env = "production"; // 体验版与正式版都用生产接口
+}
 
 // 获取对应环境的配置
-const envConfig = config[env] || config.development;
-
-// 导出基础URL和WebSocket URL
+const envConfig = config[env];
 const baseURL = envConfig.baseURL;
 const wsURL = envConfig.wsURL;
 
 // 封装请求函数
 const request = (options) => {
-	// 获取用户token
 	const userInfo = wx.getStorageSync("user_info");
 	const token = userInfo ? userInfo.token : "";
 
@@ -36,7 +38,7 @@ const request = (options) => {
 			data: options.data || {},
 			header: {
 				"content-type": "application/json",
-				Authorization: token, // 添加认证头
+				Authorization: token,
 				...options.header,
 			},
 			success: (res) => {
@@ -46,9 +48,7 @@ const request = (options) => {
 					reject(res);
 				}
 			},
-			fail: (err) => {
-				reject(err);
-			},
+			fail: reject,
 		});
 	});
 };
@@ -58,13 +58,9 @@ const connectWebSocket = (roomId) => {
 	return new Promise((resolve, reject) => {
 		const url = `${wsURL}?room_id=${roomId}`;
 		wx.connectSocket({
-			url: url,
-			success: () => {
-				resolve();
-			},
-			fail: (err) => {
-				reject(err);
-			},
+			url,
+			success: resolve,
+			fail: reject,
 		});
 	});
 };
