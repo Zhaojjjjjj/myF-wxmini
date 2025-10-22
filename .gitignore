@@ -34,3 +34,5 @@ build/
 
 # WeChat Mini Program
 miniprogram_npm/
+
+.codelf

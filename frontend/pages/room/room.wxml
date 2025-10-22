@@ -1,10 +1,5 @@
 <view class="container">
-  <!-- 动态3D背景 -->
-  <view class="background-animation">
-    <view class="shape"></view>
-    <view class="shape"></view>
-    <view class="shape"></view>
-  </view>
+
 
   <!-- 顶部按钮 -->
   <view class="header">
@@ -89,30 +84,19 @@
       <view class="avatar-upload-section">
         <view class="avatar-preview-container">
           <image class="avatar-preview" src="{{currentUserAvatar}}" mode="aspectFill" bindtap="chooseAvatar"></image>
-          <view class="avatar-overlay" bindtap="chooseAvatar">
-            <text class="overlay-icon">📷</text>
-            <text class="overlay-text">点击更换</text>
-          </view>
         </view>
-        <button class="change-avatar-btn" bindtap="chooseAvatar">
-          <text class="btn-icon">📷</text>
-          <text class="btn-text">选择头像</text>
-        </button>
       </view>
 
       <!-- 昵称输入 -->
       <view class="input-section">
-        <text class="input-label">昵称</text>
         <input class="profile-input" placeholder="请输入您的昵称" value="{{newNickname}}" bindinput="onNicknameInput" maxlength="20" />
       </view>
 
       <view class="button-group">
         <button class="confirm-btn" bindtap="confirmUpdateProfile">
-          <text class="btn-icon">✅</text>
-          <text class="btn-text">保存修改</text>
+          <text class="btn-text">保存</text>
         </button>
         <button class="close-btn" bindtap="hideProfileModal">
-          <text class="btn-icon">❌</text>
           <text class="btn-text">取消</text>
         </button>
       </view>

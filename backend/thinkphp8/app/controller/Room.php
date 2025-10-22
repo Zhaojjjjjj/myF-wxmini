@@ -18,6 +18,15 @@ class Room
             return json(['code' => 401, 'msg' => '未登录']);
         }
 
+        // 先退出当前房间（如果有）
+        if ($user->current_room_id) {
+            // 删除旧房间成员记录
+            RoomMemberModel::where('user_id', $user->id)->delete();
+            // 清空当前房间ID
+            $user->current_room_id = null;
+            $user->save();
+        }
+
         // 创建房间
         $room = new RoomModel();
         $room->room_code = uniqid(); // 简单的唯一标识，实际可使用UUID
@@ -66,10 +75,24 @@ class Room
             return json(['code' => 400, 'msg' => '房间人数已满']);
         }
 
-        // 检查用户是否已在房间中
+        // 检查用户是否已在该房间中
         $existingMember = RoomMemberModel::where('room_id', $roomId)->where('user_id', $user->id)->find();
         if ($existingMember) {
-            return json(['code' => 400, 'msg' => '您已在该房间中']);
+            // 已在该房间中，直接返回成功（允许重复加入，避免前后端状态不一致）
+            return json([
+                'code' => 200,
+                'msg' => '加入成功',
+                'data' => [
+                    'room_id' => $room->id,
+                    'room_code' => $room->room_code
+                ]
+            ]);
+        }
+
+        // 先退出当前房间（如果在其他房间）
+        if ($user->current_room_id && $user->current_room_id != $roomId) {
+            // 删除旧房间成员记录
+            RoomMemberModel::where('user_id', $user->id)->delete();
         }
 
         // 用户加入房间
@@ -202,20 +225,44 @@ class Room
             return json(['code' => 404, 'msg' => '房间不存在或已关闭']);
         }
 
+        // 检查缓存的小程序码
+        $qrcodePath = app()->getRuntimePath() . 'qrcode/room_' . $roomId . '.png';
+        if (file_exists($qrcodePath) && (time() - filemtime($qrcodePath)) < 86400) {
+            // 24小时内的缓存直接返回
+            $qrCodeImage = file_get_contents($qrcodePath);
+            return response($qrCodeImage, 200, ['Content-Type' => 'image/png']);
+        }
+
         // 获取微信配置
         $config = config('wechat.mini_program');
         $appId = $config['app_id'];
         $secret = $config['secret'];
 
-        // 获取access_token
+        // 获取access_token（建议使用缓存，这里简化处理）
         $tokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={$appId}&secret={$secret}";
         
         try {
-            $tokenResponse = file_get_contents($tokenUrl);
+            // 使用curl代替file_get_contents，更稳定
+            $ch = curl_init($tokenUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            $tokenResponse = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($httpCode !== 200 || !$tokenResponse) {
+                throw new \Exception('获取access_token网络请求失败');
+            }
+            
             $tokenData = json_decode($tokenResponse, true);
             
             if (isset($tokenData['errcode']) && $tokenData['errcode'] != 0) {
-                return json(['code' => 500, 'msg' => '获取access_token失败: ' . $tokenData['errmsg']]);
+                throw new \Exception('获取access_token失败: ' . ($tokenData['errmsg'] ?? 'Unknown error'));
+            }
+            
+            if (!isset($tokenData['access_token'])) {
+                throw new \Exception('access_token不存在');
             }
             
             $accessToken = $tokenData['access_token'];
@@ -223,33 +270,71 @@ class Room
             // 生成小程序码
             $qrCodeUrl = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token={$accessToken}";
             
-            // 构造参数
+            // 构造参数 - 使用scene传递房间ID
             $params = [
-                'scene' => 'room_id=' . $roomId,
-                'page' => 'pages/room/room',
-                'width' => 430
+                'scene' => $roomId,  // 场景值，最长32位字符串
+                'page' => 'pages/room/room',  // 小程序页面路径
+                'width' => 430,
+                'check_path' => false,  // 不检查页面是否存在（开发阶段可设为false）
+                'env_version' => 'develop'  // develop:开发版, trial:体验版, release:正式版
             ];
             
             // 发送POST请求生成小程序码
-            $options = [
-                'http' => [
-                    'header'  => "Content-type: application/json\r\n",
-                    'method'  => 'POST',
-                    'content' => json_encode($params)
-                ]
-            ];
+            $ch = curl_init($qrCodeUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            $qrCodeImage = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
             
-            $context  = stream_context_create($options);
-            $qrCodeImage = file_get_contents($qrCodeUrl, false, $context);
-            
-            if ($qrCodeImage === false) {
-                return json(['code' => 500, 'msg' => '生成小程序码失败']);
+            if ($httpCode !== 200 || !$qrCodeImage) {
+                throw new \Exception('生成小程序码网络请求失败');
             }
             
+            // 检查返回的是否是图片（如果是JSON说明出错了）
+            $jsonCheck = json_decode($qrCodeImage, true);
+            if ($jsonCheck !== null && isset($jsonCheck['errcode'])) {
+                throw new \Exception('微信API错误: ' . ($jsonCheck['errmsg'] ?? 'Unknown error'));
+            }
+            
+            // 确保目录存在
+            $qrcodeDir = app()->getRuntimePath() . 'qrcode';
+            if (!is_dir($qrcodeDir)) {
+                mkdir($qrcodeDir, 0755, true);
+            }
+            
+            // 保存到本地缓存
+            file_put_contents($qrcodePath, $qrCodeImage);
+            
             // 直接返回图片
-            return response($qrCodeImage, 200, ['Content-Type' => 'image/png']);
+            return response($qrCodeImage, 200, [
+                'Content-Type' => 'image/png',
+                'Cache-Control' => 'public, max-age=86400'
+            ]);
+            
         } catch (\Exception $e) {
-            return json(['code' => 500, 'msg' => '生成小程序码失败: ' . $e->getMessage()]);
+            // 记录错误日志
+            \think\facade\Log::error('生成小程序码失败: ' . $e->getMessage());
+            
+            // 开发环境返回错误信息，生产环境返回通用错误
+            if (app()->isDebug()) {
+                return json([
+                    'code' => 500, 
+                    'msg' => '生成小程序码失败: ' . $e->getMessage(),
+                    'debug' => [
+                        'appid' => $appId,
+                        'room_id' => $roomId
+                    ]
+                ]);
+            } else {
+                return json(['code' => 500, 'msg' => '生成小程序码失败，请稍后重试']);
+            }
         }
     }
 }

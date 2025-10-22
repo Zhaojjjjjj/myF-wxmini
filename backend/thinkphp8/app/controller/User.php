@@ -75,11 +75,26 @@ class User
         );
 
         try {
-            $response = file_get_contents($sessionUrl);
-            if ($response === false) {
-                throw new \Exception('请求微信接口失败');
+            // 使用 curl 替代 file_get_contents，更稳定
+            $ch = curl_init($sessionUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            
+            if ($response === false || $httpCode !== 200) {
+                throw new \Exception('请求微信接口失败: ' . $curlError);
             }
+            
             $sessionData = json_decode($response, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception('解析微信响应失败');
+            }
         } catch (\Throwable $e) {
             Log::error('微信登录接口调用失败: ' . $e->getMessage());
             return json([

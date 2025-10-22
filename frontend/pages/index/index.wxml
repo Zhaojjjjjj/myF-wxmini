@@ -1,42 +1,11 @@
 <view class="container">
-  <!-- 3D背景层 -->
-  <view class="background-3d">
-    <!-- 几何图形装饰 -->
-    <view class="floating-shapes">
-      <view class="shape shape-1"></view>
-      <view class="shape shape-2"></view>
-      <view class="shape shape-3"></view>
-      <view class="shape shape-4"></view>
-      <view class="shape shape-5"></view>
-    </view>
-    
-    <!-- 光效装饰 -->
-    <view class="light-effects">
-      <view class="light light-1"></view>
-      <view class="light light-2"></view>
-      <view class="light light-3"></view>
-    </view>
-  </view>
-
-  <!-- 主要内容区域 -->
+  
   <view class="main-content">
     <!-- 品牌标识区域 -->
     <view class="brand-section">
       <view class="logo-container">
-          <image class="logo-icon" src="../../assets/imgs/logo.png" mode="widthFix" bindtap="createRoom" />
+        <image class="logo-icon" src="../../assets/imgs/logo.png" mode="widthFix" bindtap="createRoom" />
       </view>
     </view>
-
-    <!-- 主要操作区域 -->
-    <!-- <view class="action-section">
-      <button class="create-btn" bindtap="createRoom">
-        <view class="btn-content">
-          <view class="btn-text-group">
-            <text class="btn-text">开桌</text>
-          </view>
-        </view>
-        <view class="btn-glow"></view>
-      </button>
-    </view> -->
   </view>
 </view>

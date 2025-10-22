@@ -22,19 +22,75 @@ Page({
   },
 
   onLoad(options) {
-    // 获取当前用户ID和头像
-    const userInfo = wx.getStorageSync('user_info');
-    if (userInfo) {
+    console.log('房间页面加载，参数:', options);
+    const app = getApp();
+    
+    // 处理房间ID参数
+    let roomId = options.id || options.room_id;
+    
+    // 处理场景值（从小程序码进入）
+    if (options.scene) {
+      roomId = decodeURIComponent(options.scene);
+      console.log('从小程序码进入，房间ID:', roomId);
+    }
+
+    if (!roomId) {
+      wx.showToast({
+        title: '房间ID无效',
+        icon: 'none'
+      });
+      setTimeout(() => {
+        wx.redirectTo({
+          url: '/pages/index/index'
+        });
+      }, 1500);
+      return;
+    }
+
+    this.setData({ roomId: roomId });
+
+    // 显示加载提示
+    wx.showLoading({
+      title: '进入房间中...',
+      mask: true
+    });
+
+    // 等待静默登录完成
+    app.waitForLogin((userInfo, error) => {
+      wx.hideLoading();
+      
+      if (!userInfo) {
+        // 登录失败，引导回首页重试
+        wx.showModal({
+          title: '登录失败',
+          content: '无法自动登录，请返回首页重试',
+          confirmText: '返回首页',
+          showCancel: false,
+          success: () => {
+            wx.redirectTo({
+              url: '/pages/index/index?room_id=' + roomId
+            });
+          }
+        });
+        return;
+      }
+
+      // 登录成功，设置用户信息
       this.setData({
         currentUserId: userInfo.id,
         currentUserAvatar: userInfo.avatar_url || ''
       });
-    }
 
-    this.setData({ roomId: options.id });
-    this.connectWebSocket();
-    this.refreshRoom();
-    this.loadQrCode(); // 加载小程序码
+      // 检查是否需要加入房间
+      if (!userInfo.current_room_id || userInfo.current_room_id != roomId) {
+        // 不在这个房间中，自动加入
+        this.autoJoinRoom(roomId);
+      } else {
+        // 已经在房间中，直接连接和刷新
+        this.connectWebSocket();
+        this.refreshRoom();
+      }
+    });
   },
 
   // 连接WebSocket
@@ -108,6 +164,72 @@ Page({
       });
   },
 
+  // 自动加入房间（扫码进入或分享进入时）
+  autoJoinRoom(roomId) {
+    wx.showLoading({
+      title: '正在加入房间...',
+      mask: true
+    });
+    
+    room.join({ room_id: roomId })
+      .then(res => {
+        wx.hideLoading();
+        if (res.code === 200) {
+          wx.showToast({
+            title: '已加入房间',
+            icon: 'success',
+            duration: 1500
+          });
+          
+          // 更新本地用户信息
+          const userInfo = wx.getStorageSync('user_info');
+          if (userInfo) {
+            userInfo.current_room_id = roomId;
+            wx.setStorageSync('user_info', userInfo);
+          }
+          
+          // 加入成功后，连接WebSocket和刷新房间数据
+          setTimeout(() => {
+            this.connectWebSocket();
+            this.refreshRoom();
+          }, 500);
+        } else {
+          wx.showModal({
+            title: '加入失败',
+            content: res.msg || '无法加入房间，可能是房间已满或不存在',
+            confirmText: '返回首页',
+            showCancel: false,
+            success: () => {
+              wx.redirectTo({
+                url: '/pages/index/index'
+              });
+            }
+          });
+        }
+      })
+      .catch(err => {
+        wx.hideLoading();
+        console.error('自动加入房间失败', err);
+        wx.showModal({
+          title: '网络错误',
+          content: '加入房间失败，请检查网络连接',
+          confirmText: '重试',
+          cancelText: '返回首页',
+          success: (res) => {
+            if (res.confirm) {
+              // 重试
+              this.autoJoinRoom(roomId);
+            } else {
+              // 返回首页
+              wx.redirectTo({
+                url: '/pages/index/index'
+              });
+            }
+          }
+        });
+      });
+  },
+
   // 加载小程序码
   loadQrCode() {
     this.setData({
@@ -115,8 +237,16 @@ Page({
       qrcodeError: false
     });
     
-    // 直接设置小程序码的URL
-    const qrcodeUrl = `${baseURL}/room/qrcode?room_id=${this.data.roomId}`;
+    // 获取用户token
+    const userInfo = wx.getStorageSync('user_info');
+    const token = userInfo ? userInfo.token : '';
+    
+    // 设置小程序码的URL，并添加时间戳防止缓存
+    const timestamp = new Date().getTime();
+    const qrcodeUrl = `${baseURL}/room/qrcode?room_id=${this.data.roomId}&t=${timestamp}&token=${token}`;
+    
+    console.log('加载小程序码:', qrcodeUrl);
+    
     this.setData({
       qrcodeUrl: qrcodeUrl
     });
@@ -125,6 +255,8 @@ Page({
   // 显示邀请弹窗
   showInviteModal() {
     this.setData({ showInviteModal: true });
+    // 显示弹窗时加载小程序码
+    this.loadQrCode();
   },
 
   // 隐藏邀请弹窗
@@ -391,5 +523,23 @@ Page({
         }
       }
     });
+  },
+
+  // 分享功能
+  onShareAppMessage() {
+    return {
+      title: '邀请你加入房间一起玩！',
+      path: `/pages/room/room?id=${this.data.roomId}`,
+      imageUrl: '/assets/imgs/logo.png' 
+    };
+  },
+
+  // 分享到朋友圈
+  onShareTimeline() {
+    return {
+      title: '邀请你加入房间一起玩！',
+      query: `id=${this.data.roomId}`,
+      imageUrl: '/assets/imgs/logo.png' 
+    };
   }
 });
