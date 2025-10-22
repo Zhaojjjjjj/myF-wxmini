@@ -65,7 +65,6 @@
 .exit-btn:hover {
 	background: #fef2f2;
 	border-color: #fca5a5;
-	transform: translateY(-1px);
 }
 /* 成员列表区域 */
 .members-container {
@@ -219,17 +218,6 @@
 	position: relative;
 }
 
-@keyframes modalSlideIn {
-	from {
-		opacity: 0;
-		transform: scale(0.95) translateY(-10px);
-	}
-	to {
-		opacity: 1;
-		transform: scale(1) translateY(0);
-	}
-}
-
 /* 邀请弹窗特殊样式 */
 .invite-modal {
 	width: 360px;
@@ -373,9 +361,6 @@
 	border: 3px solid #3b82f6;
 }
 
-.avatar-preview:active {
-	transform: scale(0.98);
-}
 
 .avatar-overlay {
 	position: absolute;
@@ -541,63 +526,3 @@
 	}
 }
 
-/* 微妙的进入动画 */
-.container {
-	animation: fadeInUp 0.6s ease-out;
-}
-
-.header {
-	animation: fadeInDown 0.8s ease-out 0.1s both;
-}
-
-.members-container {
-	animation: fadeInUp 0.8s ease-out 0.2s both;
-}
-
-.logs {
-	animation: fadeInUp 0.8s ease-out 0.3s both;
-}
-
-@keyframes fadeInUp {
-	from {
-		opacity: 0;
-		transform: translateY(20px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-@keyframes fadeInDown {
-	from {
-		opacity: 0;
-		transform: translateY(-20px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-/* 成员卡片交错动画 */
-.member-card:nth-child(1) { animation-delay: 0.1s; }
-.member-card:nth-child(2) { animation-delay: 0.2s; }
-.member-card:nth-child(3) { animation-delay: 0.3s; }
-.member-card:nth-child(4) { animation-delay: 0.4s; }
-.member-card:nth-child(5) { animation-delay: 0.5s; }
-
-.member-card {
-	animation: slideInRight 0.6s ease-out both;
-}
-
-@keyframes slideInRight {
-	from {
-		opacity: 0;
-		transform: translateX(30px);
-	}
-	to {
-		opacity: 1;
-		transform: translateX(0);
-	}
-}

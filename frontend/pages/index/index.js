@@ -147,52 +147,75 @@ Page({
 
 	// 创建房间
 	createRoom() {
-		// 等待静默登录完成
-		app.waitForLogin((userInfo, error) => {
-			if (!userInfo) {
-				wx.hideLoading();
-				wx.showToast({
-					title: '登录失败，请稍后重试',
-					icon: 'none'
-				});
-				return;
-			}
-			wx.showLoading({
-				title: '创建中...',
-				mask: true
-			});
-
-			// 已登录，创建房间
-			room.create()
-				.then((res) => {
-					wx.hideLoading();
-					if (res.code === 200) {
-						// 更新本地存储的 current_room_id
-						const localUserInfo = wx.getStorageSync('user_info');
-						if (localUserInfo) {
-							localUserInfo.current_room_id = res.data.room_id;
-							wx.setStorageSync('user_info', localUserInfo);
-						}
-						
-						// 跳转到房间页面
-						wx.redirectTo({
-							url: "/pages/room/room?id=" + res.data.room_id,
-						});
-					} else {
-						wx.showToast({
-							title: res.msg || '创建失败',
-							icon: "none",
-						});
+		console.log('创建房间按钮被点击');
+		
+		// 检查本地是否有 token
+		const localUserInfo = wx.getStorageSync('user_info');
+		console.log('本地用户信息:', localUserInfo);
+		
+		if (!localUserInfo || !localUserInfo.token) {
+			console.log('未登录或 token 不存在，提示用户登录');
+			wx.showModal({
+				title: '需要登录',
+				content: '请先登录后再创建房间',
+				confirmText: '立即登录',
+				success: (res) => {
+					if (res.confirm) {
+						this.handleLogin();
 					}
-				})
-				.catch((err) => {
-					wx.hideLoading();
+				}
+			});
+			return;
+		}
+		
+		// 已有 token，显示加载提示
+		wx.showLoading({
+			title: '创建中...',
+			mask: true
+		});
+
+		// 创建房间
+		room.create()
+			.then((res) => {
+				wx.hideLoading();
+				console.log('创建房间响应:', res);
+				
+				if (res.code === 200) {
+					// 更新本地存储的 current_room_id
+					localUserInfo.current_room_id = res.data.room_id;
+					wx.setStorageSync('user_info', localUserInfo);
+					
+					// 跳转到房间页面
+					wx.redirectTo({
+						url: "/pages/room/room?id=" + res.data.room_id,
+					});
+				} else if (res.code === 401) {
+					// token 失效，提示重新登录
+					console.log('Token 失效，提示重新登录');
+					wx.showModal({
+						title: '登录已过期',
+						content: '请重新登录后再试',
+						confirmText: '立即登录',
+						success: (modalRes) => {
+							if (modalRes.confirm) {
+								this.handleLogin();
+							}
+						}
+					});
+				} else {
 					wx.showToast({
-						title: "网络错误",
+						title: res.msg || '创建失败',
 						icon: "none",
 					});
-					console.error("创建房间失败", err);
+				}
+			})
+			.catch((err) => {
+				wx.hideLoading();
+				console.error("创建房间失败", err);
+				wx.showToast({
+					title: "网络错误，请稍后重试",
+					icon: "none",
 				});
-		});
+			});
 	},
 });
