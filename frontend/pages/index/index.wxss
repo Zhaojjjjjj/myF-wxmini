@@ -42,9 +42,6 @@
 .logo-icon {
 	width: 150px;
 	animation: logoFloat 4s ease-in-out infinite;
-	filter: 
-		drop-shadow(0 10px 30px rgba(138, 43, 226, 0.6))
-		drop-shadow(0 0 60px rgba(30, 144, 255, 0.4));
 	position: relative;
 	z-index: 10;
 }
