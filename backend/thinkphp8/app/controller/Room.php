@@ -271,12 +271,14 @@ class Room
             $qrCodeUrl = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token={$accessToken}";
             
             // 构造参数 - 使用scene传递房间ID
+            // 根据环境自动选择版本：生产环境用正式版，开发环境用开发版
+            $isDebug = app()->isDebug();
             $params = [
                 'scene' => $roomId,  // 场景值，最长32位字符串
                 'page' => 'pages/room/room',  // 小程序页面路径
                 'width' => 430,
-                'check_path' => false,  // 不检查页面是否存在（开发阶段可设为false）
-                'env_version' => 'develop'  // develop:开发版, trial:体验版, release:正式版
+                'check_path' => !$isDebug,  // 生产环境启用路径检查
+                'env_version' => $isDebug ? 'develop' : 'release'  // 根据环境自动选择版本
             ];
             
             // 发送POST请求生成小程序码

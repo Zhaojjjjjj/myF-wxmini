@@ -50,11 +50,9 @@
       </view>
       <view class="invite-tip">长按小程序码保存到相册，或点击下方按钮分享</view>
       <button class="share-btn" open-type="share">
-        <text class="btn-icon">📤</text>
         <text class="btn-text">分享邀请</text>
       </button>
       <button class="close-btn" bindtap="hideInviteModal">
-        <text class="btn-icon">❌</text>
         <text class="btn-text">关闭</text>
       </button>
     </view>
@@ -65,11 +63,9 @@
     <view class="modal-content">
       <input class="transfer-input" placeholder="输入转账金额(1-10000)" type="number" bindinput="onTransferAmountInput" />
       <button class="confirm-btn" bindtap="confirmTransfer">
-        <text class="btn-icon">💰</text>
-        <text class="btn-text">确定转账</text>
+        <text class="btn-text">确定</text>
       </button>
       <button class="close-btn" bindtap="hideTransferModal">
-        <text class="btn-icon">❌</text>
         <text class="btn-text">取消</text>
       </button>
     </view>
