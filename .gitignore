@@ -36,3 +36,4 @@ build/
 miniprogram_npm/
 
 .codelf
+.cursor

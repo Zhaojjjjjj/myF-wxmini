@@ -39,18 +39,41 @@
    CHARSET = utf8mb4
    ```
 
-#### 2.4. 配置网站
+#### 2.4. 配置网站 ⚠️ 重要
 1. 在宝塔面板中添加网站
-2. 设置网站目录为项目根目录
-3. 设置运行目录为`public`
-4. 设置伪静态规则（ThinkPHP规则）：
+2. **网站目录**：设置为项目根目录（如 `/www/wwwroot/wx.0326j.top/backend/thinkphp8`）
+3. **运行目录**：**必须设置为 `/public`**  ← 非常重要！
+4. 设置伪静态规则（选择 ThinkPHP 或手动输入）：
    ```nginx
    location / {
-       if (!-e $request_filename){
-           rewrite  ^(.*)$  /index.php?s=$1  last;   break;
-       }
+       try_files $uri $uri/ /index.php?$query_string;
+   }
+   
+   location ~ \.php$ {
+       fastcgi_pass unix:/tmp/php-cgi-74.sock;
+       fastcgi_index index.php;
+       fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+       include fastcgi_params;
    }
    ```
+   **注意：** `php-cgi-74.sock` 中的 `74` 是 PHP 版本号，根据你的 PHP 版本修改
+
+5. 保存并重载 Nginx 配置
+
+#### 2.4.1. 测试路由配置是否正确
+```bash
+# 方法1：使用测试脚本（推荐）
+php test_routes.php
+
+# 方法2：手动测试
+curl -I "https://your-domain.com/room/qrcode?room_id=1"
+# 应该返回 401 Unauthorized（而不是 404 Not Found）
+```
+
+**如果返回 404 错误，请查看详细修复步骤：**
+```bash
+cat ../PRODUCTION_FIX.md
+```
 
 #### 2.5. 启动WebSocket服务
 1. 安装WebSocket依赖：

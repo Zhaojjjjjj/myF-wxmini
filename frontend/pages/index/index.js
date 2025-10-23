@@ -5,37 +5,64 @@ const app = getApp();
 Page({
 	data: {
 		isLoggedIn: false,
+		isLoggingIn: false,  // 正在登录中
+		loginFailed: false,   // 登录失败
 		pendingAction: null  // 保存待执行的操作
 	},
 
 	onLoad(options) {
-		console.log('首页加载，参数:', options);
+		
+		// 先检查本地是否已有登录信息
+		const userInfo = wx.getStorageSync('user_info');
+		if (userInfo && userInfo.token) {
+			// 已有登录信息，直接标记为已登录
+			this.setData({ 
+				isLoggedIn: true,
+				isLoggingIn: false,
+				loginFailed: false
+			});
+			
+			// 处理分享场景或检查房间状态
+			if (options.room_id || options.id) {
+				const roomId = options.room_id || options.id;
+				this.navigateToRoom(roomId);
+			} else {
+				this.checkRoomStatus();
+			}
+			return;
+		}
+		
+		// 标记为登录中
+		this.setData({ 
+			isLoggedIn: false,
+			isLoggingIn: true,
+			loginFailed: false
+		});
 		
 		// 处理分享场景：如果从分享链接进入且带有房间ID
 		if (options.room_id || options.id) {
 			const roomId = options.room_id || options.id;
-			console.log('从分享进入，房间ID:', roomId);
 			
 			// 保存房间ID到全局
 			app.globalData.pendingRoomId = roomId;
 			
-			// 显示加载提示
-			wx.showLoading({
-				title: '加载中...',
-				mask: true
-			});
-			
 			// 等待静默登录完成后自动进入房间
 			app.waitForLogin((userInfo, error) => {
-				wx.hideLoading();
-				
 				if (userInfo) {
 					// 登录成功，跳转到房间
-					this.setData({ isLoggedIn: true });
+					this.setData({ 
+						isLoggedIn: true,
+						isLoggingIn: false,
+						loginFailed: false
+					});
 					this.navigateToRoom(roomId);
 				} else {
 					// 登录失败，提示用户
-					this.setData({ isLoggedIn: false });
+					this.setData({ 
+						isLoggedIn: false,
+						isLoggingIn: false,
+						loginFailed: true
+					});
 					wx.showModal({
 						title: '登录失败',
 						content: '无法自动登录，请检查网络连接后重试',
@@ -44,6 +71,10 @@ Page({
 						success: (res) => {
 							if (res.confirm) {
 								// 重新加载页面
+								this.setData({ 
+									isLoggingIn: true,
+									loginFailed: false
+								});
 								app.silentLogin();
 								setTimeout(() => {
 									this.onLoad(options);
@@ -59,12 +90,19 @@ Page({
 			// 正常进入首页，等待静默登录完成后检查房间状态
 			app.waitForLogin((userInfo, error) => {
 				if (userInfo) {
-					this.setData({ isLoggedIn: true });
+					this.setData({ 
+						isLoggedIn: true,
+						isLoggingIn: false,
+						loginFailed: false
+					});
 					// 检查用户是否已在房间中
 					this.checkRoomStatus();
 				} else {
-					this.setData({ isLoggedIn: false });
-					console.log('静默登录失败，但允许浏览首页');
+					this.setData({ 
+						isLoggedIn: false,
+						isLoggingIn: false,
+						loginFailed: true
+					});
 				}
 			});
 		}
@@ -73,8 +111,11 @@ Page({
 	onShow() {
 		// 每次显示时检查登录状态
 		const userInfo = wx.getStorageSync('user_info');
+		const hasToken = !!(userInfo && userInfo.token);
 		this.setData({
-			isLoggedIn: !!(userInfo && userInfo.token)
+			isLoggedIn: hasToken,
+			isLoggingIn: hasToken ? false : this.data.isLoggingIn,
+			loginFailed: hasToken ? false : this.data.loginFailed
 		});
 	},
 
@@ -97,7 +138,6 @@ Page({
 					}
 				})
 				.catch((err) => {
-					console.error('检查房间状态失败', err);
 					// 网络错误，清空本地房间ID
 					userInfo.current_room_id = null;
 					wx.setStorageSync("user_info", userInfo);
@@ -107,11 +147,9 @@ Page({
 
 	// 跳转到指定房间
 	navigateToRoom(roomId) {
-		console.log('跳转到房间:', roomId);
 		wx.redirectTo({
 			url: "/pages/room/room?id=" + roomId,
 			fail: (err) => {
-				console.error('跳转失败', err);
 				wx.showToast({
 					title: '跳转失败',
 					icon: 'none'
@@ -140,35 +178,127 @@ Page({
 			}
 		}, (err) => {
 			// 登录失败
-			console.error('登录失败', err);
 			app.globalData.pendingRoomId = null;  // 清除
 		});
 	},
 
 	// 创建房间
 	createRoom() {
-		console.log('创建房间按钮被点击');
 		
-		// 检查本地是否有 token
-		const localUserInfo = wx.getStorageSync('user_info');
-		console.log('本地用户信息:', localUserInfo);
-		
-		if (!localUserInfo || !localUserInfo.token) {
-			console.log('未登录或 token 不存在，提示用户登录');
-			wx.showModal({
-				title: '需要登录',
-				content: '请先登录后再创建房间',
-				confirmText: '立即登录',
-				success: (res) => {
-					if (res.confirm) {
-						this.handleLogin();
-					}
+		// 如果正在登录中，等待登录完成
+		if (this.data.isLoggingIn) {
+			wx.showLoading({
+				title: '正在登录...',
+				mask: true
+			});
+			
+			// 等待登录完成
+			app.waitForLogin((userInfo, error) => {
+				wx.hideLoading();
+				
+				if (userInfo) {
+					// 登录成功，继续创建房间
+					this.setData({ 
+						isLoggedIn: true,
+						isLoggingIn: false,
+						loginFailed: false
+					});
+					this.doCreateRoom();
+				} else {
+					// 登录失败
+					this.setData({ 
+						isLoggedIn: false,
+						isLoggingIn: false,
+						loginFailed: true
+					});
+					wx.showModal({
+						title: '登录失败',
+						content: '无法自动登录，请检查网络连接后重试',
+						confirmText: '重试',
+						cancelText: '取消',
+						success: (res) => {
+							if (res.confirm) {
+								// 重试登录
+								this.setData({ 
+									isLoggingIn: true,
+									loginFailed: false
+								});
+								app.silentLogin();
+								// 登录成功后自动创建房间
+								app.waitForLogin((retryUserInfo) => {
+									if (retryUserInfo) {
+										this.setData({ 
+											isLoggedIn: true,
+											isLoggingIn: false
+										});
+										this.doCreateRoom();
+									}
+								});
+							}
+						}
+					});
 				}
 			});
 			return;
 		}
 		
-		// 已有 token，显示加载提示
+		// 检查本地是否有 token
+		const localUserInfo = wx.getStorageSync('user_info');
+		
+		if (!localUserInfo || !localUserInfo.token) {
+			this.setData({ 
+				isLoggingIn: true,
+				loginFailed: false
+			});
+			
+			wx.showLoading({
+				title: '正在登录...',
+				mask: true
+			});
+			
+			// 等待登录完成
+			app.waitForLogin((userInfo, error) => {
+				wx.hideLoading();
+				
+				if (userInfo) {
+					// 登录成功，继续创建房间
+					this.setData({ 
+						isLoggedIn: true,
+						isLoggingIn: false,
+						loginFailed: false
+					});
+					this.doCreateRoom();
+				} else {
+					// 登录失败
+					this.setData({ 
+						isLoggedIn: false,
+						isLoggingIn: false,
+						loginFailed: true
+					});
+					wx.showModal({
+						title: '登录失败',
+						content: '无法自动登录，请检查网络连接后重试',
+						confirmText: '重试',
+						cancelText: '取消',
+						success: (res) => {
+							if (res.confirm) {
+								// 重试
+								this.createRoom();
+							}
+						}
+					});
+				}
+			});
+			return;
+		}
+		
+		// 已登录，直接创建房间
+		this.doCreateRoom();
+	},
+	
+	// 执行创建房间操作
+	doCreateRoom() {
+		// 显示加载提示
 		wx.showLoading({
 			title: '创建中...',
 			mask: true
@@ -178,28 +308,36 @@ Page({
 		room.create()
 			.then((res) => {
 				wx.hideLoading();
-				console.log('创建房间响应:', res);
 				
 				if (res.code === 200) {
 					// 更新本地存储的 current_room_id
-					localUserInfo.current_room_id = res.data.room_id;
-					wx.setStorageSync('user_info', localUserInfo);
+					const localUserInfo = wx.getStorageSync('user_info');
+					if (localUserInfo) {
+						localUserInfo.current_room_id = res.data.room_id;
+						wx.setStorageSync('user_info', localUserInfo);
+					}
 					
 					// 跳转到房间页面
 					wx.redirectTo({
 						url: "/pages/room/room?id=" + res.data.room_id,
 					});
 				} else if (res.code === 401) {
-					// token 失效，提示重新登录
-					console.log('Token 失效，提示重新登录');
+					// token 失效，清除本地token并重新登录
+					wx.removeStorageSync('user_info');
+					this.setData({ 
+						isLoggedIn: false,
+						isLoggingIn: false,
+						loginFailed: false
+					});
+					
 					wx.showModal({
 						title: '登录已过期',
-						content: '请重新登录后再试',
-						confirmText: '立即登录',
-						success: (modalRes) => {
-							if (modalRes.confirm) {
-								this.handleLogin();
-							}
+						content: '需要重新登录',
+						confirmText: '重新登录',
+						showCancel: false,
+						success: () => {
+							// 自动重试
+							this.createRoom();
 						}
 					});
 				} else {
@@ -211,7 +349,6 @@ Page({
 			})
 			.catch((err) => {
 				wx.hideLoading();
-				console.error("创建房间失败", err);
 				wx.showToast({
 					title: "网络错误，请稍后重试",
 					icon: "none",

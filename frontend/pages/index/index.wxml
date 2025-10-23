@@ -6,6 +6,13 @@
       <view class="logo-container">
         <image class="logo-icon" src="../../assets/imgs/logo.png" mode="widthFix" bindtap="createRoom" />
       </view>
+      
+      <!-- 登录状态提示 -->
+<!-- <view class="login-status">
+        <view wx:if="{{isLoggingIn}}" class="status-text logging-in">正在登录中...</view>
+        <view wx:elif="{{isLoggedIn}}" class="status-text logged-in">点击 LOGO 创建房间</view>
+        <view wx:elif="{{loginFailed}}" class="status-text login-failed">登录失败，点击 LOGO 重试</view>
+      </view> -->
     </view>
   </view>
 </view>

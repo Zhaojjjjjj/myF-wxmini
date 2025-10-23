@@ -15,12 +15,12 @@ class AuthToken
         if (empty($token)) {
             $token = $request->param('token', '');
         }
-        
-        // 记录调试信息
-        Log::info('AuthToken middleware - Token: ' . ($token ? substr($token, 0, 10) . '...' : 'empty'));
-        Log::info('AuthToken middleware - Headers: ' . json_encode($request->header()));
+
+        Log::info('AuthToken中间件 - URL: ' . $request->url());
+        Log::info('AuthToken中间件 - Token: ' . ($token ? substr($token, 0, 20) . '...' : 'empty'));
 
         if (empty($token)) {
+            Log::warning('AuthToken中间件 - 未提供token');
             return json([
                 'code' => 401,
                 'msg' => '未提供认证令牌'
@@ -30,14 +30,14 @@ class AuthToken
         $user = UserModel::where('token', $token)->find();
         
         if (!$user) {
-            Log::warning('AuthToken middleware - Invalid token: ' . substr($token, 0, 10) . '...');
+            Log::warning('AuthToken中间件 - token无效: ' . substr($token, 0, 20) . '...');
             return json([
                 'code' => 401,
                 'msg' => '认证令牌无效或已过期'
             ]);
         }
         
-        Log::info('AuthToken middleware - User authenticated: ' . $user->id);
+        Log::info('AuthToken中间件 - 用户认证成功: ' . $user->id);
         $request->user = $user;
 
         return $next($request);

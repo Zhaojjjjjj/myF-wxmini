@@ -31,11 +31,6 @@ const request = (options) => {
 	const userInfo = wx.getStorageSync("user_info");
 	const token = userInfo && userInfo.token ? userInfo.token : "";
 
-	// 添加调试日志
-	console.log('Request - URL:', options.url);
-	console.log('Request - Method:', options.method || 'GET');
-	console.log('Request - Token:', token ? token.substring(0, 10) + '...' : 'empty');
-
 	return new Promise((resolve, reject) => {
 		wx.request({
 			url: baseURL + options.url,
@@ -47,15 +42,10 @@ const request = (options) => {
 				...options.header,
 			},
 			success: (res) => {
-				console.log('Response - Status:', res.statusCode);
-				console.log('Response - Data:', res.data);
-				
 				if (res.statusCode === 200) {
 					// 如果返回401，说明token失效，清除本地登录信息
 					if (res.data && res.data.code === 401) {
-						console.warn('Token 失效，清除本地登录信息');
 						wx.removeStorageSync('user_info');
-						// 提示用户重新登录
 						wx.showToast({
 							title: res.data.msg || '登录已过期，请重新登录',
 							icon: 'none'
@@ -63,12 +53,10 @@ const request = (options) => {
 					}
 					resolve(res.data);
 				} else {
-					console.error('Request failed with status:', res.statusCode);
 					reject(res);
 				}
 			},
 			fail: (err) => {
-				console.error('Request error:', err);
 				reject(err);
 			},
 		});

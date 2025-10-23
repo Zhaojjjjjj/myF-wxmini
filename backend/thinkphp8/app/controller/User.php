@@ -216,15 +216,27 @@ class User
     // 上传头像
     public function uploadAvatar(Request $request)
     {
-        // 从中间件获取已验证的用户信息
+        // 从中间件获取已验证的用户信息，如果没有则手动验证
         $user = $request->user ?? null;
 
         if (!$user) {
-            return json([
-                'code' => 401,
-                'msg' => '未登录',
-                'data' => null
-            ]);
+            // 手动验证token
+            $token = $request->header('Authorization', '');
+            if (empty($token)) {
+                $token = $request->param('token', '');
+            }
+            
+            if ($token) {
+                $user = UserModel::where('token', $token)->find();
+            }
+            
+            if (!$user) {
+                return json([
+                    'code' => 401,
+                    'msg' => '未登录',
+                    'data' => null
+                ]);
+            }
         }
 
         // 获取上传的文件
@@ -238,24 +250,33 @@ class User
             ]);
         }
 
+        // 验证文件是否有效
+        if (!$file->isValid()) {
+            return json([
+                'code' => 400,
+                'msg' => '文件上传失败，请重试',
+                'data' => null
+            ]);
+        }
+
         // 验证文件类型
-        $allowedTypes = ['jpg', 'jpeg', 'png', 'gif'];
+        $allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         $extension = strtolower($file->getOriginalExtension());
 
         if (!in_array($extension, $allowedTypes)) {
             return json([
                 'code' => 400,
-                'msg' => '头像文件格式不支持，仅支持jpg、jpeg、png、gif格式',
+                'msg' => '头像文件格式不支持，仅支持jpg、jpeg、png、gif、webp格式',
                 'data' => null
             ]);
         }
 
-        // 验证文件大小 (2MB)
-        $maxSize = 2 * 1024 * 1024;
+        // 验证文件大小 (5MB)
+        $maxSize = 5 * 1024 * 1024;
         if ($file->getSize() > $maxSize) {
             return json([
                 'code' => 400,
-                'msg' => '头像文件大小不能超过2MB',
+                'msg' => '头像文件大小不能超过5MB',
                 'data' => null
             ]);
         }
@@ -272,22 +293,26 @@ class User
 
             $file->move($savePath, $fileName);
 
-            // 更新用户头像URL
-            $avatarUrl = '/uploads/avatars/' . $fileName;
+            // 更新用户头像URL - 使用完整的URL
+            $baseUrl = $request->domain();
+            $avatarUrl = $baseUrl . '/uploads/avatars/' . $fileName;
             $user->avatar_url = $avatarUrl;
             $user->save();
 
             return json([
                 'code' => 200,
                 'msg' => '头像上传成功',
-                'data' => $this->normalizeUserResponse($user)
+                'data' => [
+                    'avatar_url' => $avatarUrl,
+                    'user' => $this->normalizeUserResponse($user)
+                ]
             ]);
 
         } catch (\Exception $e) {
             Log::error('头像上传失败: ' . $e->getMessage());
             return json([
                 'code' => 500,
-                'msg' => '头像上传失败，请稍后再试',
+                'msg' => '头像上传失败',
                 'data' => null
             ]);
         }
