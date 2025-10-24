@@ -48,12 +48,15 @@
           <button class="retry-btn" bindtap="retryLoadQrcode">重新加载</button>
         </view>
       </view>
-      <button class="share-btn" open-type="share">
-        <text class="btn-text">分享邀请</text>
-      </button>
+      <view class="button-group">
+        <button class="share-btn" open-type="share">
+          <text class="btn-text">分享邀请</text>
+        </button>
+    
       <button class="close-btn" bindtap="hideInviteModal">
         <text class="btn-text">关闭</text>
       </button>
+        </view>
     </view>
   </view>
 
@@ -88,7 +91,7 @@
       </view>
 
       <view class="button-group">
-        <button class="confirm-btn" bindtap="confirmUpdateProfile">
+        <button class="share-btn" bindtap="confirmUpdateProfile">
           <text class="btn-text">保存</text>
         </button>
         <button class="close-btn" bindtap="hideProfileModal">

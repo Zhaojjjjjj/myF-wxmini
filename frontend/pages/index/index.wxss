@@ -10,8 +10,8 @@
 	justify-content: center;
 	align-items: center;
 	overflow: hidden;
+	background-image: linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%);
 }
-
 
 /* ==================== 主要内容区域 ==================== */
 .main-content {
@@ -47,7 +47,8 @@
 }
 
 @keyframes logoFloat {
-	0%, 100% {
+	0%,
+	100% {
 		transform: translateY(0px) rotateY(0deg) scale(1);
 	}
 	50% {
@@ -127,7 +128,8 @@
 }
 
 @keyframes pulse {
-	0%, 100% {
+	0%,
+	100% {
 		opacity: 1;
 		transform: scale(1);
 	}
@@ -157,7 +159,11 @@
 		filter: blur(40px);
 	}
 
-	.glow-1, .glow-2, .glow-3, .glow-4, .glow-5 {
+	.glow-1,
+	.glow-2,
+	.glow-3,
+	.glow-4,
+	.glow-5 {
 		width: 200px;
 		height: 200px;
 	}
@@ -187,7 +193,11 @@
 		filter: blur(30px);
 	}
 
-	.glow-1, .glow-2, .glow-3, .glow-4, .glow-5 {
+	.glow-1,
+	.glow-2,
+	.glow-3,
+	.glow-4,
+	.glow-5 {
 		width: 150px;
 		height: 150px;
 	}
