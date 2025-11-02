@@ -217,7 +217,12 @@ Page({
 		const userInfo = wx.getStorageSync("user_info");
 		const token = userInfo ? userInfo.token : "";
 
+		console.log('加载小程序码 - 房间ID:', this.data.roomId);
+		console.log('加载小程序码 - Token:', token ? token.substring(0, 10) + '...' : 'empty');
+		console.log('加载小程序码 - baseURL:', baseURL);
+
 		if (!token) {
+			console.error('加载小程序码失败: token为空');
 			wx.showToast({
 				title: "登录状态失效，请重新登录",
 				icon: "none",
@@ -230,13 +235,31 @@ Page({
 		}
 
 		// 构造小程序码URL，添加token作为查询参数
-		const qrcodeUrl = `${baseURL}/room/qrcode?room_id=${this.data.roomId}&token=${token}`;
+		const qrcodeUrl = `${baseURL}/room/qrcode?room_id=${this.data.roomId}&token=${encodeURIComponent(token)}`;
+		
+		console.log('加载小程序码 - 完整URL:', qrcodeUrl);
 		
 		this.setData({
 			qrcodeLoading: true,
 			qrcodeError: false,
 			qrcodeUrl: qrcodeUrl,
 		});
+		
+		// 设置超时检测
+		setTimeout(() => {
+			if (this.data.qrcodeLoading) {
+				console.warn('小程序码加载超时');
+				this.setData({
+					qrcodeLoading: false,
+					qrcodeError: true,
+				});
+				wx.showToast({
+					title: '小程序码加载超时',
+					icon: 'none',
+					duration: 3000
+				});
+			}
+		}, 15000); // 15秒超时
 	},
 
 	// 显示邀请弹窗
@@ -269,10 +292,20 @@ Page({
 	},
 
 	// 小程序码加载失败
-	onQrcodeError() {
+	onQrcodeError(e) {
+		console.error('小程序码加载失败:', e);
+		console.error('小程序码URL:', this.data.qrcodeUrl);
+		
 		this.setData({
 			qrcodeLoading: false,
 			qrcodeError: true,
+		});
+		
+		// 生产环境显示详细错误信息
+		wx.showToast({
+			title: '小程序码加载失败',
+			icon: 'none',
+			duration: 3000
 		});
 	},
 
@@ -409,6 +442,17 @@ Page({
 		const userInfo = wx.getStorageSync("user_info");
 		const token = userInfo ? userInfo.token : "";
 
+		console.log('开始上传头像:', {
+			url: `${baseURL}/user/avatar`,
+			filePath: this.data.tempAvatarFile,
+			token: token ? token.substring(0, 10) + '...' : 'empty'
+		});
+
+		wx.showLoading({
+			title: '上传头像中...',
+			mask: true
+		});
+
 		wx.uploadFile({
 			url: `${baseURL}/user/avatar`,
 			filePath: this.data.tempAvatarFile,
@@ -417,6 +461,11 @@ Page({
 				Authorization: token,
 			},
 			success: (res) => {
+				wx.hideLoading();
+				console.log('头像上传响应:', res);
+				console.log('响应状态码:', res.statusCode);
+				console.log('响应数据:', res.data);
+				
 				try {
 					const data = JSON.parse(res.data);
 					if (data.code === 200) {
@@ -424,24 +473,30 @@ Page({
 						updateData.avatar_url = data.data.avatar_url;
 						this.updateUserProfile(updateData);
 					} else {
+						console.error('头像上传失败:', data);
 						wx.showToast({
 							title: data.msg || "头像上传失败",
 							icon: "none",
+							duration: 3000
 						});
 					}
 				} catch (e) {
-					console.error("解析响应失败:", e);
+					console.error("解析响应失败:", e, "原始数据:", res.data);
 					wx.showToast({
-						title: "头像上传失败",
+						title: "头像上传失败: 响应格式错误",
 						icon: "none",
+						duration: 3000
 					});
 				}
 			},
 			fail: (err) => {
+				wx.hideLoading();
 				console.error("头像上传请求失败:", err);
+				console.error("错误详情:", JSON.stringify(err));
 				wx.showToast({
-					title: "头像上传失败",
+					title: "头像上传失败: " + (err.errMsg || '网络错误'),
 					icon: "none",
+					duration: 3000
 				});
 			},
 		});

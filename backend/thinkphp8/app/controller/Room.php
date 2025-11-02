@@ -214,20 +214,28 @@ class Room
     // 生成房间小程序码
     public function getQrCode(Request $request)
     {
+        \think\facade\Log::info('小程序码请求 - 开始处理');
+        
         // 支持从查询参数或header获取token进行验证
         $token = $request->param('token') ?: $request->header('Authorization');
         
+        \think\facade\Log::info('小程序码请求 - Token: ' . ($token ? substr($token, 0, 20) . '...' : 'empty'));
+        
         if (!$token) {
+            \think\facade\Log::warning('小程序码请求 - 未提供token');
             return json(['code' => 401, 'msg' => '未登录']);
         }
         
         // 验证token
         $user = UserModel::where('token', $token)->find();
         if (!$user) {
+            \think\facade\Log::warning('小程序码请求 - token无效');
             return json(['code' => 401, 'msg' => '登录信息无效']);
         }
         
         $roomId = $request->param('room_id');
+        
+        \think\facade\Log::info('小程序码请求 - 房间ID: ' . $roomId);
         
         if (!$roomId) {
             return json(['code' => 400, 'msg' => '房间ID参数缺失']);
@@ -235,13 +243,18 @@ class Room
 
         $room = RoomModel::where('id', $roomId)->where('status', 'active')->find();
         if (!$room) {
+            \think\facade\Log::warning('小程序码请求 - 房间不存在: ' . $roomId);
             return json(['code' => 404, 'msg' => '房间不存在或已关闭']);
         }
 
         // 检查缓存的小程序码
         $qrcodePath = app()->getRuntimePath() . 'qrcode/room_' . $roomId . '.png';
+        
+        \think\facade\Log::info('小程序码请求 - 缓存路径: ' . $qrcodePath);
+        
         if (file_exists($qrcodePath) && (time() - filemtime($qrcodePath)) < 86400) {
             // 24小时内的缓存直接返回
+            \think\facade\Log::info('小程序码请求 - 使用缓存');
             $qrCodeImage = file_get_contents($qrcodePath);
             return response($qrCodeImage, 200, [
                 'Content-Type' => 'image/png',
@@ -249,10 +262,14 @@ class Room
             ]);
         }
 
+        \think\facade\Log::info('小程序码请求 - 生成新的小程序码');
+
         // 获取微信配置
         $config = config('wechat.mini_program');
         $appId = $config['app_id'];
         $secret = $config['secret'];
+        
+        \think\facade\Log::info('小程序码请求 - AppID: ' . $appId);
 
         // 获取access_token
         $tokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={$appId}&secret={$secret}";
@@ -337,15 +354,17 @@ class Room
             
         } catch (\Exception $e) {
             \think\facade\Log::error('生成小程序码失败: ' . $e->getMessage());
+            \think\facade\Log::error('生成小程序码失败 - 堆栈: ' . $e->getTraceAsString());
             
-            if (app()->isDebug()) {
-                return json([
-                    'code' => 500, 
-                    'msg' => '生成小程序码失败: ' . $e->getMessage()
-                ]);
-            } else {
-                return json(['code' => 500, 'msg' => '生成小程序码失败，请稍后重试']);
-            }
+            // 生产环境也返回详细错误信息,便于调试
+            return json([
+                'code' => 500, 
+                'msg' => '生成小程序码失败: ' . $e->getMessage(),
+                'debug' => [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]
+            ]);
         }
     }
 }

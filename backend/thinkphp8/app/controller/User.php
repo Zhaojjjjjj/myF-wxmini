@@ -287,15 +287,39 @@ class User
 
             // 移动文件到上传目录
             $savePath = app()->getRootPath() . 'public/uploads/avatars/';
+            
+            Log::info('头像上传 - 保存路径: ' . $savePath);
+            Log::info('头像上传 - 文件名: ' . $fileName);
+            
             if (!is_dir($savePath)) {
-                mkdir($savePath, 0755, true);
+                Log::info('头像上传 - 创建目录: ' . $savePath);
+                if (!mkdir($savePath, 0755, true)) {
+                    throw new \Exception('无法创建上传目录');
+                }
+            }
+            
+            // 检查目录是否可写
+            if (!is_writable($savePath)) {
+                Log::error('头像上传 - 目录不可写: ' . $savePath);
+                throw new \Exception('上传目录不可写,请检查权限');
             }
 
             $file->move($savePath, $fileName);
+            
+            // 验证文件是否成功保存
+            $fullPath = $savePath . $fileName;
+            if (!file_exists($fullPath)) {
+                throw new \Exception('文件保存失败');
+            }
+            
+            Log::info('头像上传 - 文件已保存: ' . $fullPath);
 
             // 更新用户头像URL - 使用完整的URL
             $baseUrl = $request->domain();
             $avatarUrl = $baseUrl . '/uploads/avatars/' . $fileName;
+            
+            Log::info('头像上传 - 生成URL: ' . $avatarUrl);
+            
             $user->avatar_url = $avatarUrl;
             $user->save();
 
@@ -310,9 +334,10 @@ class User
 
         } catch (\Exception $e) {
             Log::error('头像上传失败: ' . $e->getMessage());
+            Log::error('头像上传失败 - 堆栈: ' . $e->getTraceAsString());
             return json([
                 'code' => 500,
-                'msg' => '头像上传失败',
+                'msg' => '头像上传失败: ' . $e->getMessage(),
                 'data' => null
             ]);
         }
