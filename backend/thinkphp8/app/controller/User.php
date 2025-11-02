@@ -285,34 +285,89 @@ class User
             // 生成唯一的文件名
             $fileName = 'avatar_' . $user->id . '_' . time() . '.' . $extension;
 
-            // 移动文件到上传目录
-            $savePath = app()->getRootPath() . 'public/uploads/avatars/';
+            // 使用public目录的绝对路径
+            $publicPath = public_path();
+            $uploadDir = 'uploads/avatars';
+            $savePath = $publicPath . $uploadDir . DIRECTORY_SEPARATOR;
             
-            Log::info('头像上传 - 保存路径: ' . $savePath);
-            Log::info('头像上传 - 文件名: ' . $fileName);
+            Log::info('头像上传 - 开始处理', [
+                'user_id' => $user->id,
+                'file_name' => $fileName,
+                'public_path' => $publicPath,
+                'save_path' => $savePath,
+                'file_size' => $file->getSize(),
+                'file_type' => $extension
+            ]);
             
+            // 递归创建目录，确保父目录也存在
             if (!is_dir($savePath)) {
-                Log::info('头像上传 - 创建目录: ' . $savePath);
-                if (!mkdir($savePath, 0755, true)) {
-                    throw new \Exception('无法创建上传目录');
+                Log::info('头像上传 - 目录不存在，开始创建: ' . $savePath);
+                
+                // 先尝试创建uploads目录
+                $uploadsPath = $publicPath . 'uploads' . DIRECTORY_SEPARATOR;
+                if (!is_dir($uploadsPath)) {
+                    if (!@mkdir($uploadsPath, 0755, true)) {
+                        $error = error_get_last();
+                        Log::error('头像上传 - 创建uploads目录失败', [
+                            'path' => $uploadsPath,
+                            'error' => $error['message'] ?? 'unknown'
+                        ]);
+                        throw new \Exception('无法创建上传目录: ' . ($error['message'] ?? '权限不足'));
+                    }
+                }
+                
+                // 再创建avatars子目录
+                if (!@mkdir($savePath, 0755, true)) {
+                    $error = error_get_last();
+                    Log::error('头像上传 - 创建avatars目录失败', [
+                        'path' => $savePath,
+                        'error' => $error['message'] ?? 'unknown'
+                    ]);
+                    throw new \Exception('无法创建头像目录: ' . ($error['message'] ?? '权限不足'));
+                }
+                
+                Log::info('头像上传 - 目录创建成功: ' . $savePath);
+            }
+            
+            // 检查目录权限
+            if (!is_writable($savePath)) {
+                // 尝试修改权限
+                @chmod($savePath, 0755);
+                
+                // 再次检查
+                if (!is_writable($savePath)) {
+                    Log::error('头像上传 - 目录不可写', [
+                        'path' => $savePath,
+                        'permissions' => substr(sprintf('%o', fileperms($savePath)), -4),
+                        'owner' => function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($savePath))['name'] : 'unknown',
+                        'current_user' => function_exists('posix_getpwuid') ? posix_getpwuid(posix_geteuid())['name'] : 'unknown'
+                    ]);
+                    throw new \Exception('上传目录不可写，请联系管理员检查目录权限');
                 }
             }
-            
-            // 检查目录是否可写
-            if (!is_writable($savePath)) {
-                Log::error('头像上传 - 目录不可写: ' . $savePath);
-                throw new \Exception('上传目录不可写,请检查权限');
-            }
 
+            // 移动文件
             $file->move($savePath, $fileName);
             
             // 验证文件是否成功保存
             $fullPath = $savePath . $fileName;
             if (!file_exists($fullPath)) {
-                throw new \Exception('文件保存失败');
+                Log::error('头像上传 - 文件保存后不存在: ' . $fullPath);
+                throw new \Exception('文件保存失败，请重试');
             }
             
-            Log::info('头像上传 - 文件已保存: ' . $fullPath);
+            // 验证文件大小
+            $savedSize = filesize($fullPath);
+            if ($savedSize === 0) {
+                Log::error('头像上传 - 保存的文件大小为0: ' . $fullPath);
+                @unlink($fullPath);
+                throw new \Exception('文件保存失败，文件大小为0');
+            }
+            
+            Log::info('头像上传 - 文件保存成功', [
+                'full_path' => $fullPath,
+                'file_size' => $savedSize
+            ]);
 
             // 更新用户头像URL - 使用完整的URL
             $baseUrl = $request->domain();
@@ -333,12 +388,23 @@ class User
             ]);
 
         } catch (\Exception $e) {
-            Log::error('头像上传失败: ' . $e->getMessage());
-            Log::error('头像上传失败 - 堆栈: ' . $e->getTraceAsString());
+            Log::error('头像上传失败', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return json([
                 'code' => 500,
                 'msg' => '头像上传失败: ' . $e->getMessage(),
-                'data' => null
+                'data' => [
+                    'error_detail' => [
+                        'message' => $e->getMessage(),
+                        'file' => basename($e->getFile()),
+                        'line' => $e->getLine()
+                    ]
+                ]
             ]);
         }
     }

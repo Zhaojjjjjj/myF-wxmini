@@ -248,7 +248,9 @@ class Room
         }
 
         // 检查缓存的小程序码
-        $qrcodePath = app()->getRuntimePath() . 'qrcode/room_' . $roomId . '.png';
+        $runtimePath = app()->getRuntimePath();
+        $qrcodeDir = $runtimePath . 'qrcode';
+        $qrcodePath = $qrcodeDir . DIRECTORY_SEPARATOR . 'room_' . $roomId . '.png';
         
         \think\facade\Log::info('小程序码请求 - 缓存路径: ' . $qrcodePath);
         
@@ -303,15 +305,26 @@ class Room
             // 生成小程序码
             $qrCodeUrl = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token={$accessToken}";
             
-            // 构造参数
-            $isDebug = app()->isDebug();
+            // 根据请求来源判断环境版本
+            // 体验版和正式版都使用release，开发环境使用develop
+            $envVersion = 'release'; // 默认使用正式版
+            
+            // 如果是本地开发环境，使用develop
+            if (app()->isDebug()) {
+                $envVersion = 'develop';
+            }
+            
+            \think\facade\Log::info('小程序码请求 - 环境版本: ' . $envVersion);
+            
             $params = [
                 'scene' => (string)$roomId,
                 'page' => 'pages/room/room',
                 'width' => 430,
                 'check_path' => false,
-                'env_version' => $isDebug ? 'develop' : 'release'
+                'env_version' => $envVersion
             ];
+            
+            \think\facade\Log::info('小程序码请求 - 请求参数', $params);
             
             // 发送POST请求生成小程序码
             $ch = curl_init($qrCodeUrl);
@@ -323,28 +336,57 @@ class Room
                 'Content-Type: application/json'
             ]);
             curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
             $qrCodeImage = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
             curl_close($ch);
             
+            \think\facade\Log::info('小程序码请求 - 响应状态', [
+                'http_code' => $httpCode,
+                'response_size' => strlen($qrCodeImage),
+                'curl_error' => $curlError
+            ]);
+            
             if ($httpCode !== 200 || !$qrCodeImage) {
-                throw new \Exception('生成小程序码网络请求失败');
+                throw new \Exception('生成小程序码网络请求失败: HTTP ' . $httpCode . ($curlError ? ', ' . $curlError : ''));
             }
             
             // 检查返回的是否是图片
             $jsonCheck = json_decode($qrCodeImage, true);
             if ($jsonCheck !== null && isset($jsonCheck['errcode'])) {
+                \think\facade\Log::error('小程序码生成 - 微信API错误', $jsonCheck);
                 throw new \Exception('微信API错误(' . $jsonCheck['errcode'] . '): ' . ($jsonCheck['errmsg'] ?? 'Unknown error'));
             }
             
             // 确保目录存在
-            $qrcodeDir = app()->getRuntimePath() . 'qrcode';
             if (!is_dir($qrcodeDir)) {
-                mkdir($qrcodeDir, 0755, true);
+                \think\facade\Log::info('小程序码生成 - 创建缓存目录: ' . $qrcodeDir);
+                if (!@mkdir($qrcodeDir, 0755, true)) {
+                    $error = error_get_last();
+                    \think\facade\Log::error('小程序码生成 - 创建目录失败', [
+                        'path' => $qrcodeDir,
+                        'error' => $error['message'] ?? 'unknown'
+                    ]);
+                    // 目录创建失败不影响返回，只是不缓存
+                }
             }
             
-            // 保存到本地缓存
-            file_put_contents($qrcodePath, $qrCodeImage);
+            // 检查目录是否可写
+            if (!is_writable($qrcodeDir)) {
+                @chmod($qrcodeDir, 0755);
+            }
+            
+            // 保存到本地缓存（如果目录可写）
+            if (is_writable($qrcodeDir)) {
+                if (@file_put_contents($qrcodePath, $qrCodeImage)) {
+                    \think\facade\Log::info('小程序码生成 - 缓存保存成功: ' . $qrcodePath);
+                } else {
+                    \think\facade\Log::warning('小程序码生成 - 缓存保存失败: ' . $qrcodePath);
+                }
+            } else {
+                \think\facade\Log::warning('小程序码生成 - 缓存目录不可写，跳过缓存: ' . $qrcodeDir);
+            }
             
             // 直接返回图片
             return response($qrCodeImage, 200, [
@@ -353,16 +395,24 @@ class Room
             ]);
             
         } catch (\Exception $e) {
-            \think\facade\Log::error('生成小程序码失败: ' . $e->getMessage());
-            \think\facade\Log::error('生成小程序码失败 - 堆栈: ' . $e->getTraceAsString());
+            \think\facade\Log::error('生成小程序码失败', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'room_id' => $roomId,
+                'trace' => $e->getTraceAsString()
+            ]);
             
-            // 生产环境也返回详细错误信息,便于调试
+            // 返回详细错误信息，便于调试
             return json([
                 'code' => 500, 
                 'msg' => '生成小程序码失败: ' . $e->getMessage(),
-                'debug' => [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine()
+                'data' => [
+                    'error_detail' => [
+                        'message' => $e->getMessage(),
+                        'file' => basename($e->getFile()),
+                        'line' => $e->getLine()
+                    ]
                 ]
             ]);
         }
